@@ -81,7 +81,7 @@ php artisan serve
 
 ### Criar comunicação
 
-`POST /api/communications`
+`POST /api/v1/communications`
 
 Payload mínimo (do desafio):
 
@@ -112,7 +112,7 @@ Resposta: `202 Accepted` com o registro criado em `status=pending` e o `ProcessC
 Exemplo `curl`:
 
 ```bash
-curl -i -X POST http://localhost:8000/api/communications \
+curl -i -X POST http://localhost:8000/api/v1/communications \
   -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{
     "recipient": "usuario@email.com",
@@ -125,16 +125,17 @@ curl -i -X POST http://localhost:8000/api/communications \
 
 ### Consultar comunicação
 
-`GET /api/communications/{id}` — retorna status atual + histórico de logs (`received`, `queued`, `processing`, `sent`, `failed`).
+`GET /api/v1/communications/{id}` — retorna status atual + histórico de logs (`received`, `queued`, `processing`, `sent`, `failed`).
 
 ### Buscar comunicações
 
-`GET /api/communications` — lista paginada com filtros opcionais (combiná­veis):
+`GET /api/v1/communications` — lista paginada com filtros opcionais (combiná­veis):
 
 | Query | Descrição |
 |-------|-----------|
 | `channel` | `email`, `sms` ou `push` |
-| `status` | `pending`, `processing`, `sent`, `failed` |
+| `status` | `pending`, `processing`, `sent`, `failed`, `cancelled` |
+| `include_cancelled` | `1` para incluir comunicações canceladas (soft delete) |
 | `origin_system` | match exato (ex.: `sistema-financeiro`) |
 | `recipient` | match parcial (LIKE) no destinatário |
 | `template_slug` | comunicações vinculadas a um template específico |
@@ -144,7 +145,7 @@ curl -i -X POST http://localhost:8000/api/communications \
 Exemplo:
 
 ```bash
-curl "http://localhost:8000/api/communications?channel=email&status=sent&origin_system=sistema-financeiro&recipient=usuario&template_slug=boas-vindas"
+curl "http://localhost:8000/api/v1/communications?channel=email&status=sent&origin_system=sistema-financeiro&recipient=usuario&template_slug=boas-vindas"
 ```
 
 ### Editar ou excluir antes do envio
@@ -153,8 +154,9 @@ Enquanto o status estiver `pending`, a comunicação ainda pode ser corrigida ou
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| `PATCH/PUT` | `/api/communications/{id}` | Atualiza `recipient`, `subject`, `message`, `origin_system`, `variables` ou troca `template_id`/`template_slug` (sempre no mesmo canal) |
-| `DELETE` | `/api/communications/{id}` | Cancela a comunicação ainda não processada |
+| `PATCH/PUT` | `/api/v1/communications/{id}` | Atualiza `recipient`, `subject`, `message`, `origin_system`, `variables` ou troca `template_id`/`template_slug` (sempre no mesmo canal) |
+| `DELETE` | `/api/v1/communications/{id}` | Cancela a comunicação pendente (status `cancelled` + soft delete) |
+| `POST` | `/api/v1/communications/{id}/retry` | Reprocessa comunicação com status `failed` |
 
 Tentar alterar ou excluir uma comunicação em `processing`, `sent` ou `failed` retorna `409 Conflict`:
 
@@ -166,15 +168,28 @@ Tentar alterar ou excluir uma comunicação em `processing`, `sent` ou `failed` 
 }
 ```
 
+### Headers recomendados (POST communications)
+
+| Header | Descrição |
+|--------|-----------|
+| `X-Request-Id` | Correlation ID para rastrear request → comunicação → logs (gerado automaticamente se omitido) |
+| `Idempotency-Key` | Evita duplicar envios em retries do cliente (UUID recomendado) |
+
+Rate limit: `60` requisições/min por `origin_system` (configurável via `NOTIFICATIONS_RATE_LIMIT`).
+
+### Healthcheck
+
+`GET /api/v1/health` — verifica banco, fila (`jobs` / `failed_jobs`) e versão da API.
+
 ### CRUD de templates
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| `GET` | `/api/notification-templates` | Lista (filtros: `channel`, `is_active`, `search`, `per_page`) |
-| `POST` | `/api/notification-templates` | Cria template |
-| `GET` | `/api/notification-templates/{id}` | Detalhe |
-| `PATCH/PUT` | `/api/notification-templates/{id}` | Atualiza |
-| `DELETE` | `/api/notification-templates/{id}` | Remove |
+| `GET` | `/api/v1/notification-templates` | Lista (filtros: `channel`, `is_active`, `search`, `per_page`) |
+| `POST` | `/api/v1/notification-templates` | Cria template |
+| `GET` | `/api/v1/notification-templates/{id}` | Detalhe |
+| `PATCH/PUT` | `/api/v1/notification-templates/{id}` | Atualiza |
+| `DELETE` | `/api/v1/notification-templates/{id}` | Remove |
 
 Placeholders no `body`/`subject` seguem o padrão `{{variavel}}` e são substituídos pelas `variables` enviadas na criação da comunicação.
 
@@ -209,8 +224,8 @@ php artisan test --compact
 
 Cobertura inclui:
 
-- Criação e validações do endpoint `POST /api/communications` (todos os canais, com e sem template).
-- `GET /api/communications/{id}` com logs.
+- Criação e validações do endpoint `POST /api/v1/communications` (todos os canais, com e sem template).
+- `GET /api/v1/communications/{id}` com logs.
 - CRUD completo de `notification-templates` por canal.
 - `ProcessCommunicationJob` (sucesso, renderização de template, falha esgotando tentativas).
 - `TemplateRenderer`, `CommunicationService`, `ChannelSenderFactory` e senders.

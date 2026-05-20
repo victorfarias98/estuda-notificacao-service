@@ -145,7 +145,44 @@
                             "host": ["{{base_url}}{{api_prefix}}"],
                             "path": ["communications", "1"]
                         },
-                        "description": "Remove uma comunicação ainda não processada. Em status `processing`, `sent` ou `failed` retorna `409 Conflict`."
+                        "description": "Cancela comunicação pendente (status `cancelled` + soft delete). Em outros estados retorna `409 Conflict`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reprocessar comunicação (failed)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/communications/1/retry",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["communications", "1", "retry"]
+                        },
+                        "description": "Reenfileira envio para comunicações com status `failed`. Retorna `202 Accepted`."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Health",
+            "item": [
+                {
+                    "name": "Healthcheck",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/health",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["health"]
+                        },
+                        "description": "Verifica banco, fila e versão da API."
                     },
                     "response": []
                 }
