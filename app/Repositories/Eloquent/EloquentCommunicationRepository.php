@@ -3,6 +3,7 @@
 namespace App\Repositories\Eloquent;
 
 use App\Contracts\Repositories\CommunicationRepositoryInterface;
+use App\Enums\CommunicationStatusEnum;
 use App\Models\Communication;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,7 +12,9 @@ class EloquentCommunicationRepository implements CommunicationRepositoryInterfac
 {
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return $this->baseQuery()
+        $includeCancelled = filter_var($filters['include_cancelled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        return $this->baseQuery($includeCancelled)
             ->with('template:id,slug,channel')
             ->when($filters['channel'] ?? null, fn (Builder $query, string $channel): Builder => $query->where('channel', $channel))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status): Builder => $query->where('status', $status))
@@ -52,11 +55,24 @@ class EloquentCommunicationRepository implements CommunicationRepositoryInterfac
         return $this->baseQuery()->with('template')->find($id);
     }
 
+    public function findIncludingTrashed(int $id): ?Communication
+    {
+        return Communication::withTrashed()
+            ->with(['template', 'logs'])
+            ->find($id);
+    }
+
     /**
      * @return Builder<Communication>
      */
-    private function baseQuery(): Builder
+    private function baseQuery(bool $includeCancelled = false): Builder
     {
-        return Communication::query();
+        $query = Communication::query();
+
+        if ($includeCancelled) {
+            return $query->withTrashed();
+        }
+
+        return $query->where('status', '!=', CommunicationStatusEnum::Cancelled->value);
     }
 }

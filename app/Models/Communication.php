@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'recipient',
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'subject',
     'message',
     'origin_system',
+    'correlation_id',
     'notification_template_id',
     'variables',
     'status',
@@ -29,7 +31,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Communication extends Model
 {
     /** @use HasFactory<CommunicationFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * @return array<string, string>
@@ -87,5 +89,17 @@ class Communication extends Model
             'status' => CommunicationStatusEnum::Failed,
             'failure_reason' => $reason,
         ])->save();
+    }
+
+    public function markCancelled(): void
+    {
+        $this->forceFill([
+            'status' => CommunicationStatusEnum::Cancelled,
+        ])->save();
+    }
+
+    public function resolveRouteBinding($value, $field = null): ?static
+    {
+        return $this->where($field ?? $this->getRouteKeyName(), $value)->withTrashed()->first();
     }
 }

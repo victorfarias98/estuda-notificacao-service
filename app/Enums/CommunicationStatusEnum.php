@@ -8,6 +8,7 @@ enum CommunicationStatusEnum: string
     case Processing = 'processing';
     case Sent = 'sent';
     case Failed = 'failed';
+    case Cancelled = 'cancelled';
 
     /**
      * @return array<int, string>

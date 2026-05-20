@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'slug', 'channel', 'subject', 'body', 'description', 'is_active'])]
+#[Fillable(['name', 'slug', 'channel', 'subject', 'body', 'required_variables', 'description', 'is_active'])]
 class NotificationTemplate extends Model
 {
     /** @use HasFactory<NotificationTemplateFactory> */
@@ -23,6 +23,7 @@ class NotificationTemplate extends Model
         return [
             'channel' => CommunicationChannelEnum::class,
             'is_active' => 'boolean',
+            'required_variables' => 'array',
         ];
     }
 

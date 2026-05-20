@@ -10,4 +10,6 @@ enum CommunicationLogEventEnum: string
     case Sent = 'sent';
     case Failed = 'failed';
     case Retrying = 'retrying';
+    case Retried = 'retried';
+    case Cancelled = 'cancelled';
 }
