@@ -29,6 +29,7 @@ class CommunicationController extends Controller
             'recipient' => ['nullable', 'string', 'max:255'],
             'template_id' => ['nullable', 'integer'],
             'template_slug' => ['nullable', 'string', 'max:255'],
+            'include_cancelled' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
@@ -47,6 +48,7 @@ class CommunicationController extends Controller
         $communication = $this->communications->createAndDispatch(
             payload: $request->safe()->except(['template_id', 'template_slug']),
             template: $template,
+            correlationId: $request->attributes->get('correlation_id'),
         );
 
         return CommunicationResource::make($communication->fresh(['template']))
@@ -73,6 +75,15 @@ class CommunicationController extends Controller
         );
 
         return CommunicationResource::make($updated->load('template'));
+    }
+
+    public function retry(Communication $communication): JsonResponse
+    {
+        $retried = $this->communications->retry($communication);
+
+        return CommunicationResource::make($retried->load('template'))
+            ->response()
+            ->setStatusCode(Response::HTTP_ACCEPTED);
     }
 
     public function destroy(Communication $communication): JsonResponse

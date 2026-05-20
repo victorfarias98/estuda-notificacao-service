@@ -23,6 +23,7 @@ class CommunicationResource extends JsonResource
             'subject' => $this->subject,
             'message' => $this->message,
             'origin_system' => $this->origin_system,
+            'correlation_id' => $this->correlation_id,
             'status' => $this->status->value,
             'failure_reason' => $this->failure_reason,
             'attempts' => $this->attempts,

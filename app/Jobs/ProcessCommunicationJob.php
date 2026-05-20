@@ -6,6 +6,9 @@ use App\Channels\ChannelSenderFactory;
 use App\Contracts\Repositories\CommunicationRepositoryInterface;
 use App\DTOs\OutboundMessage;
 use App\Enums\CommunicationLogEventEnum;
+use App\Enums\CommunicationStatusEnum;
+use App\Events\CommunicationFailed;
+use App\Events\CommunicationSent;
 use App\Models\Communication;
 use App\Services\CommunicationService;
 use App\Services\TemplateRenderer;
@@ -34,7 +37,7 @@ class ProcessCommunicationJob implements ShouldQueue
     ): void {
         $communication = $communications->findForProcessing($this->communicationId);
 
-        if ($communication === null) {
+        if ($communication === null || $communication->status === CommunicationStatusEnum::Cancelled) {
             return;
         }
 
@@ -51,6 +54,8 @@ class ProcessCommunicationJob implements ShouldQueue
 
             $communication->markSent();
             $service->log($communication, CommunicationLogEventEnum::Sent, 'Mensagem enviada com sucesso.', $result);
+
+            CommunicationSent::dispatch($communication->fresh());
         } catch (Throwable $exception) {
             $service->log($communication, CommunicationLogEventEnum::Failed, $exception->getMessage(), [
                 'exception' => $exception::class,
@@ -59,6 +64,7 @@ class ProcessCommunicationJob implements ShouldQueue
 
             if ($this->attempts() >= $this->tries) {
                 $communication->markFailed($exception->getMessage());
+                CommunicationFailed::dispatch($communication->fresh());
             }
 
             throw $exception;
@@ -98,5 +104,7 @@ class ProcessCommunicationJob implements ShouldQueue
             'Job esgotou as tentativas.',
             ['exception' => $exception::class, 'message' => $exception->getMessage()],
         );
+
+        CommunicationFailed::dispatch($communication->fresh());
     }
 }

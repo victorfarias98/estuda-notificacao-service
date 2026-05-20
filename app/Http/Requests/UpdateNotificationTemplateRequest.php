@@ -31,6 +31,8 @@ class UpdateNotificationTemplateRequest extends FormRequest
             'channel' => ['sometimes', 'required', 'string', Rule::in(CommunicationChannelEnum::values())],
             'subject' => ['nullable', 'string', 'max:255'],
             'body' => ['sometimes', 'required', 'string'],
+            'required_variables' => ['sometimes', 'nullable', 'array'],
+            'required_variables.*' => ['string', 'regex:/^[a-z][a-z0-9_]*$/'],
             'description' => ['nullable', 'string', 'max:500'],
             'is_active' => ['sometimes', 'boolean'],
         ];

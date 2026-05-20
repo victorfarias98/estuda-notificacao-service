@@ -6,7 +6,9 @@ use App\Contracts\Repositories\CommunicationLogRepositoryInterface;
 use App\Contracts\Repositories\CommunicationRepositoryInterface;
 use App\Enums\CommunicationLogEventEnum;
 use App\Enums\CommunicationStatusEnum;
+use App\Events\CommunicationCreated;
 use App\Exceptions\CommunicationNotEditableException;
+use App\Exceptions\CommunicationNotRetriableException;
 use App\Jobs\ProcessCommunicationJob;
 use App\Models\Communication;
 use App\Models\CommunicationLog;
@@ -30,6 +32,7 @@ class CommunicationService
      *     recipient?: ?string,
      *     template_id?: ?int|string,
      *     template_slug?: ?string,
+     *     include_cancelled?: ?bool,
      * }  $filters
      */
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
@@ -47,18 +50,23 @@ class CommunicationService
      *     variables?: ?array<string, mixed>
      * }  $payload
      */
-    public function createAndDispatch(array $payload, ?NotificationTemplate $template = null): Communication
-    {
-        return DB::transaction(function () use ($payload, $template): Communication {
+    public function createAndDispatch(
+        array $payload,
+        ?NotificationTemplate $template = null,
+        ?string $correlationId = null,
+    ): Communication {
+        return DB::transaction(function () use ($payload, $template, $correlationId): Communication {
             $communication = $this->communications->create([
                 'recipient' => $payload['recipient'],
                 'channel' => $payload['channel'],
                 'subject' => $payload['subject'] ?? null,
                 'message' => $payload['message'] ?? null,
                 'origin_system' => $payload['origin_system'],
+                'correlation_id' => $correlationId,
                 'notification_template_id' => $template?->id,
                 'variables' => $payload['variables'] ?? null,
                 'status' => CommunicationStatusEnum::Pending,
+                'queued_at' => now(),
             ]);
 
             $this->log($communication, CommunicationLogEventEnum::Received, 'Solicitação recebida via API.', [
@@ -69,11 +77,11 @@ class CommunicationService
 
             ProcessCommunicationJob::dispatch($communication->id);
 
-            $this->communications->update($communication, ['queued_at' => now()]);
-
             $this->log($communication, CommunicationLogEventEnum::Queued, 'Job enviado para a fila.', [
                 'queue' => config('queue.default'),
             ]);
+
+            CommunicationCreated::dispatch($communication);
 
             return $communication;
         });
@@ -107,15 +115,40 @@ class CommunicationService
         });
     }
 
+    public function retry(Communication $communication): Communication
+    {
+        if ($communication->status !== CommunicationStatusEnum::Failed) {
+            throw new CommunicationNotRetriableException($communication);
+        }
+
+        return DB::transaction(function () use ($communication): Communication {
+            $updated = $this->communications->update($communication, [
+                'status' => CommunicationStatusEnum::Pending,
+                'failure_reason' => null,
+                'queued_at' => now(),
+            ]);
+
+            ProcessCommunicationJob::dispatch($updated->id);
+
+            $this->log($updated, CommunicationLogEventEnum::Retried, 'Reprocessamento solicitado via API.');
+
+            return $updated;
+        });
+    }
+
     public function delete(Communication $communication): void
     {
-        $this->ensureEditable($communication, action: 'excluída');
+        $this->ensureEditable($communication, action: 'cancelada');
 
-        $this->log($communication, CommunicationLogEventEnum::Failed, 'Comunicação excluída antes do envio.', [
-            'deleted_by' => 'api',
-        ]);
+        DB::transaction(function () use ($communication): void {
+            $communication->markCancelled();
 
-        $this->communications->delete($communication);
+            $this->log($communication, CommunicationLogEventEnum::Cancelled, 'Comunicação cancelada antes do envio.', [
+                'deleted_by' => 'api',
+            ]);
+
+            $communication->delete();
+        });
     }
 
     public function ensureEditable(Communication $communication, string $action): void
@@ -136,7 +169,7 @@ class CommunicationService
     ): CommunicationLog {
         $logEntry = $this->logs->record($communication, $event, $message, $context !== [] ? $context : null);
 
-        $logger = $event === CommunicationLogEventEnum::Failed ? 'error' : 'info';
+        $logger = in_array($event, [CommunicationLogEventEnum::Failed], true) ? 'error' : 'info';
 
         Log::{$logger}(sprintf(
             '[communication#%d][%s][%s] %s',
@@ -144,11 +177,12 @@ class CommunicationService
             strtoupper($communication->channel->value),
             strtoupper($event->value),
             $message ?? '',
-        ), [
+        ), array_filter([
+            'correlation_id' => $communication->correlation_id,
             'recipient' => $communication->recipient,
             'origin_system' => $communication->origin_system,
             ...$context,
-        ]);
+        ]));
 
         return $logEntry;
     }

@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Contracts\Repositories\NotificationTemplateRepositoryInterface;
 use App\Enums\CommunicationChannelEnum;
 use App\Models\NotificationTemplate;
+use App\Support\ValidatesTemplateVariables;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -12,6 +13,8 @@ use Illuminate\Validation\Validator;
 
 class StoreCommunicationRequest extends FormRequest
 {
+    use ValidatesTemplateVariables;
+
     public function authorize(): bool
     {
         return true;
@@ -72,6 +75,8 @@ class StoreCommunicationRequest extends FormRequest
                 if ($channel !== null && $template->channel->value !== $channel) {
                     $validator->errors()->add('template_slug', 'O template não pertence ao canal informado.');
                 }
+
+                $this->validateRequiredTemplateVariables($validator, $template);
             }
         });
     }

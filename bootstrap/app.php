@@ -1,13 +1,18 @@
 <?php
 
 use App\Exceptions\CommunicationNotEditableException;
+use App\Exceptions\CommunicationNotRetriableException;
+use App\Http\Middleware\EnsureCorrelationId;
+use App\Http\Middleware\HandleIdempotencyKey;
 use App\Models\Communication;
 use App\Models\NotificationTemplate;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -19,7 +24,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->api(prepend: [
+            EnsureCorrelationId::class,
+        ]);
+
+        $middleware->alias([
+            'idempotency' => HandleIdempotencyKey::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (CommunicationNotEditableException $exception, Request $request) {
@@ -30,6 +41,18 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json([
                 'message' => $exception->getMessage(),
                 'error' => 'communication_not_editable',
+                'status' => $exception->currentStatus()->value,
+            ], Response::HTTP_CONFLICT);
+        });
+
+        $exceptions->render(function (CommunicationNotRetriableException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'error' => 'communication_not_retriable',
                 'status' => $exception->currentStatus()->value,
             ], Response::HTTP_CONFLICT);
         });
@@ -76,4 +99,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 'error' => 'route_not_found',
             ], Response::HTTP_NOT_FOUND);
         });
-    })->create();
+    })
+    ->booting(function (): void {
+        RateLimiter::for('communications', function (Request $request): Limit {
+            return Limit::perMinute((int) config('notifications.rate_limit_per_minute'))
+                ->by((string) ($request->input('origin_system') ?? $request->ip()));
+        });
+    })
+    ->create();

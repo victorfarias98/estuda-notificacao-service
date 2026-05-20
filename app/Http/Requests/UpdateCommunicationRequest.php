@@ -6,12 +6,15 @@ use App\Contracts\Repositories\NotificationTemplateRepositoryInterface;
 use App\Enums\CommunicationChannelEnum;
 use App\Models\Communication;
 use App\Models\NotificationTemplate;
+use App\Support\ValidatesTemplateVariables;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 class UpdateCommunicationRequest extends FormRequest
 {
+    use ValidatesTemplateVariables;
+
     public function authorize(): bool
     {
         return true;
@@ -79,6 +82,14 @@ class UpdateCommunicationRequest extends FormRequest
                 if ($resolvedTemplate->channel->value !== $channel) {
                     $validator->errors()->add('template_slug', 'O template não pertence ao canal da comunicação.');
                 }
+            }
+
+            if ($template !== null) {
+                $variables = $this->has('variables')
+                    ? $this->input('variables')
+                    : ($communication->variables ?? []);
+
+                $this->validateRequiredTemplateVariables($validator, $template, is_array($variables) ? $variables : []);
             }
         });
     }

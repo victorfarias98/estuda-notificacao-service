@@ -29,6 +29,8 @@ class StoreNotificationTemplateRequest extends FormRequest
                 fn (): bool => $this->input('channel') === CommunicationChannelEnum::Email->value
             )],
             'body' => ['required', 'string'],
+            'required_variables' => ['nullable', 'array'],
+            'required_variables.*' => ['string', 'regex:/^[a-z][a-z0-9_]*$/'],
             'description' => ['nullable', 'string', 'max:500'],
             'is_active' => ['sometimes', 'boolean'],
         ];
