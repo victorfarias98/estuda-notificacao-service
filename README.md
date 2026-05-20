@@ -127,6 +127,45 @@ curl -i -X POST http://localhost:8000/api/communications \
 
 `GET /api/communications/{id}` — retorna status atual + histórico de logs (`received`, `queued`, `processing`, `sent`, `failed`).
 
+### Buscar comunicações
+
+`GET /api/communications` — lista paginada com filtros opcionais (combiná­veis):
+
+| Query | Descrição |
+|-------|-----------|
+| `channel` | `email`, `sms` ou `push` |
+| `status` | `pending`, `processing`, `sent`, `failed` |
+| `origin_system` | match exato (ex.: `sistema-financeiro`) |
+| `recipient` | match parcial (LIKE) no destinatário |
+| `template_slug` | comunicações vinculadas a um template específico |
+| `template_id` | mesmo filtro, por ID |
+| `per_page` | tamanho da página (1–100, default 15) |
+
+Exemplo:
+
+```bash
+curl "http://localhost:8000/api/communications?channel=email&status=sent&origin_system=sistema-financeiro&recipient=usuario&template_slug=boas-vindas"
+```
+
+### Editar ou excluir antes do envio
+
+Enquanto o status estiver `pending`, a comunicação ainda pode ser corrigida ou cancelada:
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `PATCH/PUT` | `/api/communications/{id}` | Atualiza `recipient`, `subject`, `message`, `origin_system`, `variables` ou troca `template_id`/`template_slug` (sempre no mesmo canal) |
+| `DELETE` | `/api/communications/{id}` | Cancela a comunicação ainda não processada |
+
+Tentar alterar ou excluir uma comunicação em `processing`, `sent` ou `failed` retorna `409 Conflict`:
+
+```json
+{
+  "message": "A comunicação #1 não pode ser atualizada no estado atual (sent).",
+  "error": "communication_not_editable",
+  "status": "sent"
+}
+```
+
 ### CRUD de templates
 
 | Método | Rota | Descrição |

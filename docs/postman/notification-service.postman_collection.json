@@ -10,6 +10,31 @@
             "name": "Communications",
             "item": [
                 {
+                    "name": "Listar comunicações (com filtros)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/communications?channel=email&status=sent&origin_system=sistema-financeiro&recipient=usuario&template_slug=boas-vindas&per_page=15",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["communications"],
+                            "query": [
+                                { "key": "channel", "value": "email", "description": "email | sms | push" },
+                                { "key": "status", "value": "sent", "description": "pending | processing | sent | failed", "disabled": true },
+                                { "key": "origin_system", "value": "sistema-financeiro", "disabled": true },
+                                { "key": "recipient", "value": "usuario", "description": "match parcial no destinatário", "disabled": true },
+                                { "key": "template_slug", "value": "boas-vindas", "disabled": true },
+                                { "key": "template_id", "value": "1", "disabled": true },
+                                { "key": "per_page", "value": "15", "disabled": true }
+                            ]
+                        },
+                        "description": "Lista comunicações com filtros opcionais por canal, status, origin_system, recipient (LIKE), template_slug, template_id e paginação."
+                    },
+                    "response": []
+                },
+                {
                     "name": "Criar comunicação (email simples)",
                     "request": {
                         "method": "POST",
@@ -84,6 +109,43 @@
                             "path": ["communications", "1"]
                         },
                         "description": "Retorna o registro da comunicação com o status atual (`pending`, `processing`, `sent`, `failed`) e o histórico de logs de processamento."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Atualizar comunicação pendente",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/communications/1",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["communications", "1"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"recipient\": \"novo@example.com\",\n  \"subject\": \"Assunto atualizado\",\n  \"message\": \"Conteúdo revisado antes do envio\",\n  \"variables\": {\n    \"nome\": \"Maria\"\n  }\n}"
+                        },
+                        "description": "Permite alterar destinatário, assunto, mensagem, origem ou template enquanto a comunicação estiver com status `pending`. Em outros estados retorna `409 Conflict`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Excluir comunicação pendente",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/communications/1",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["communications", "1"]
+                        },
+                        "description": "Remove uma comunicação ainda não processada. Em status `processing`, `sent` ou `failed` retorna `409 Conflict`."
                     },
                     "response": []
                 }
