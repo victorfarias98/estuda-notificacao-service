@@ -1,0 +1,229 @@
+{
+    "info": {
+        "name": "Notification Service",
+        "_postman_id": "f3a1b2c4-1111-4d51-9b1d-notification-svc",
+        "description": "Microsserviço de comunicação centralizado (email, sms, push) com filas Laravel. \n\nRecursos:\n- POST /communications: cria solicitação e enfileira o envio.\n- GET /communications/{id}: consulta status e logs de processamento.\n- CRUD /notification-templates: gestão de templates por canal.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Communications",
+            "item": [
+                {
+                    "name": "Criar comunicação (email simples)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/communications",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["communications"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"recipient\": \"usuario@email.com\",\n  \"channel\": \"email\",\n  \"subject\": \"Bem-vindo\",\n  \"message\": \"Sua conta foi criada com sucesso.\",\n  \"origin_system\": \"sistema-financeiro\"\n}"
+                        },
+                        "description": "Cria uma solicitação de envio por e-mail sem template. Retorna 202 Accepted com `data.id` e `data.status=pending`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Criar comunicação (SMS via template)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/communications",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["communications"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"recipient\": \"+5511999999999\",\n  \"channel\": \"sms\",\n  \"origin_system\": \"sistema-financeiro\",\n  \"template_slug\": \"codigo-otp\",\n  \"variables\": {\n    \"codigo\": \"123456\"\n  }\n}"
+                        },
+                        "description": "Envio de SMS usando o template `codigo-otp` (criado pelo seeder). As variáveis substituem placeholders no corpo do template."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Criar comunicação (Push via template)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/communications",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["communications"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"recipient\": \"device-token-abc123\",\n  \"channel\": \"push\",\n  \"origin_system\": \"app-mobile\",\n  \"template_slug\": \"promo-novidades\",\n  \"variables\": {\n    \"titulo\": \"Novidade\",\n    \"mensagem\": \"Confira nossa nova oferta\"\n  }\n}"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Consultar comunicação",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/communications/1",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["communications", "1"]
+                        },
+                        "description": "Retorna o registro da comunicação com o status atual (`pending`, `processing`, `sent`, `failed`) e o histórico de logs de processamento."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Notification Templates",
+            "item": [
+                {
+                    "name": "Listar templates",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/notification-templates?channel=email",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["notification-templates"],
+                            "query": [
+                                { "key": "channel", "value": "email", "description": "Filtra por canal: email|sms|push" },
+                                { "key": "is_active", "value": "true", "disabled": true },
+                                { "key": "search", "value": "boas", "disabled": true },
+                                { "key": "per_page", "value": "15", "disabled": true }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Criar template e-mail",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/notification-templates",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["notification-templates"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Boas-vindas\",\n  \"slug\": \"boas-vindas\",\n  \"channel\": \"email\",\n  \"subject\": \"Bem-vindo, {{nome}}\",\n  \"body\": \"Olá {{nome}}, sua conta no {{empresa}} foi criada com sucesso.\",\n  \"description\": \"Boas-vindas para novos usuários\",\n  \"is_active\": true\n}"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Criar template SMS",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/notification-templates",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["notification-templates"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Código OTP\",\n  \"slug\": \"codigo-otp\",\n  \"channel\": \"sms\",\n  \"body\": \"Seu codigo de verificacao e {{codigo}}.\",\n  \"is_active\": true\n}"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Criar template Push",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/notification-templates",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["notification-templates"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Promo Push\",\n  \"slug\": \"promo-novidades\",\n  \"channel\": \"push\",\n  \"subject\": \"Notificação\",\n  \"body\": \"{{titulo}}: {{mensagem}}\"\n}"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Mostrar template",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/notification-templates/1",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["notification-templates", "1"]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Atualizar template",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/notification-templates/1",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["notification-templates", "1"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Boas-vindas v2\",\n  \"body\": \"Olá {{nome}}, seja bem-vindo!\"\n}"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Excluir template",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}{{api_prefix}}/notification-templates/1",
+                            "host": ["{{base_url}}{{api_prefix}}"],
+                            "path": ["notification-templates", "1"]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}
