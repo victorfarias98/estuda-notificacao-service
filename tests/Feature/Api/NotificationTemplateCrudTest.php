@@ -105,6 +105,16 @@ class NotificationTemplateCrudTest extends TestCase
             ->assertJsonPath('data.id', $template->id);
     }
 
+    public function test_show_returns_friendly_response_for_unknown_template(): void
+    {
+        $this->getJson('/api/notification-templates/999')
+            ->assertNotFound()
+            ->assertJson([
+                'message' => 'Template de notificação não encontrado.',
+                'error' => 'not_found',
+            ]);
+    }
+
     public function test_updates_template(): void
     {
         $template = NotificationTemplate::factory()->push()->create();

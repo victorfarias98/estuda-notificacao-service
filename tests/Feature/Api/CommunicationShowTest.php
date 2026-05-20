@@ -32,6 +32,21 @@ class CommunicationShowTest extends TestCase
 
     public function test_show_returns_404_for_unknown_id(): void
     {
-        $this->getJson('/api/communications/999')->assertNotFound();
+        $this->getJson('/api/communications/999')
+            ->assertNotFound()
+            ->assertJson([
+                'message' => 'Comunicação não encontrada.',
+                'error' => 'not_found',
+            ]);
+    }
+
+    public function test_unknown_api_route_returns_friendly_json_response(): void
+    {
+        $this->getJson('/api/rota-inexistente')
+            ->assertNotFound()
+            ->assertJson([
+                'message' => 'Rota não encontrada.',
+                'error' => 'route_not_found',
+            ]);
     }
 }
