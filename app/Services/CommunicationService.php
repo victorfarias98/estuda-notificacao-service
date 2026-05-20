@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Contracts\Repositories\CommunicationLogRepositoryInterface;
+use App\Contracts\Repositories\CommunicationRepositoryInterface;
 use App\Enums\CommunicationLogEventEnum;
 use App\Enums\CommunicationStatusEnum;
 use App\Exceptions\CommunicationNotEditableException;
@@ -15,6 +17,11 @@ use Illuminate\Support\Facades\Log;
 
 class CommunicationService
 {
+    public function __construct(
+        private readonly CommunicationRepositoryInterface $communications,
+        private readonly CommunicationLogRepositoryInterface $logs,
+    ) {}
+
     /**
      * @param  array{
      *     channel?: ?string,
@@ -27,18 +34,7 @@ class CommunicationService
      */
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return Communication::query()
-            ->with('template:id,slug,channel')
-            ->when($filters['channel'] ?? null, fn ($query, string $channel) => $query->where('channel', $channel))
-            ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
-            ->when($filters['origin_system'] ?? null, fn ($query, string $origin) => $query->where('origin_system', $origin))
-            ->when($filters['recipient'] ?? null, fn ($query, string $recipient) => $query->where('recipient', 'like', "%{$recipient}%"))
-            ->when($filters['template_id'] ?? null, fn ($query, $templateId) => $query->where('notification_template_id', $templateId))
-            ->when($filters['template_slug'] ?? null, function ($query, string $slug): void {
-                $query->whereHas('template', fn ($templateQuery) => $templateQuery->where('slug', $slug));
-            })
-            ->orderByDesc('id')
-            ->paginate($perPage);
+        return $this->communications->paginate($filters, $perPage);
     }
 
     /**
@@ -54,7 +50,7 @@ class CommunicationService
     public function createAndDispatch(array $payload, ?NotificationTemplate $template = null): Communication
     {
         return DB::transaction(function () use ($payload, $template): Communication {
-            $communication = Communication::query()->create([
+            $communication = $this->communications->create([
                 'recipient' => $payload['recipient'],
                 'channel' => $payload['channel'],
                 'subject' => $payload['subject'] ?? null,
@@ -73,7 +69,7 @@ class CommunicationService
 
             ProcessCommunicationJob::dispatch($communication->id);
 
-            $communication->forceFill(['queued_at' => now()])->save();
+            $this->communications->update($communication, ['queued_at' => now()]);
 
             $this->log($communication, CommunicationLogEventEnum::Queued, 'Job enviado para a fila.', [
                 'queue' => config('queue.default'),
@@ -101,13 +97,13 @@ class CommunicationService
                 $changes['notification_template_id'] = null;
             }
 
-            $communication->fill($changes)->save();
+            $updated = $this->communications->update($communication, $changes);
 
-            $this->log($communication, CommunicationLogEventEnum::Received, 'Comunicação atualizada antes do envio.', [
+            $this->log($updated, CommunicationLogEventEnum::Received, 'Comunicação atualizada antes do envio.', [
                 'changed_fields' => array_keys($changes),
             ]);
 
-            return $communication->refresh();
+            return $updated;
         });
     }
 
@@ -119,7 +115,7 @@ class CommunicationService
             'deleted_by' => 'api',
         ]);
 
-        $communication->delete();
+        $this->communications->delete($communication);
     }
 
     public function ensureEditable(Communication $communication, string $action): void
@@ -138,12 +134,7 @@ class CommunicationService
         ?string $message = null,
         array $context = [],
     ): CommunicationLog {
-        $logEntry = CommunicationLog::query()->create([
-            'communication_id' => $communication->id,
-            'event' => $event,
-            'message' => $message,
-            'context' => $context !== [] ? $context : null,
-        ]);
+        $logEntry = $this->logs->record($communication, $event, $message, $context !== [] ? $context : null);
 
         $logger = $event === CommunicationLogEventEnum::Failed ? 'error' : 'info';
 

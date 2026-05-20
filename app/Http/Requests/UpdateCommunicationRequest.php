@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Contracts\Repositories\NotificationTemplateRepositoryInterface;
 use App\Enums\CommunicationChannelEnum;
 use App\Models\Communication;
 use App\Models\NotificationTemplate;
@@ -85,18 +86,14 @@ class UpdateCommunicationRequest extends FormRequest
     public function resolveTemplate(Communication $communication): ?NotificationTemplate
     {
         $channel = $communication->channel->value;
+        $repository = app(NotificationTemplateRepositoryInterface::class);
 
         if ($this->filled('template_id')) {
-            return NotificationTemplate::query()
-                ->where('channel', $channel)
-                ->find($this->integer('template_id'));
+            return $repository->findByIdAndChannel($this->integer('template_id'), $channel);
         }
 
         if ($this->filled('template_slug')) {
-            return NotificationTemplate::query()
-                ->where('slug', $this->input('template_slug'))
-                ->where('channel', $channel)
-                ->first();
+            return $repository->findBySlugAndChannel((string) $this->input('template_slug'), $channel);
         }
 
         return null;

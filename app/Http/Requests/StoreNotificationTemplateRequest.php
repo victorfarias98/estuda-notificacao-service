@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Contracts\Repositories\NotificationTemplateRepositoryInterface;
 use App\Enums\CommunicationChannelEnum;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreNotificationTemplateRequest extends FormRequest
 {
@@ -32,9 +34,9 @@ class StoreNotificationTemplateRequest extends FormRequest
         ];
     }
 
-    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    public function withValidator(Validator $validator): void
     {
-        $validator->after(function (\Illuminate\Validation\Validator $validator): void {
+        $validator->after(function (Validator $validator): void {
             $slug = $this->input('slug');
             $channel = $this->input('channel');
 
@@ -42,10 +44,8 @@ class StoreNotificationTemplateRequest extends FormRequest
                 return;
             }
 
-            $exists = \App\Models\NotificationTemplate::query()
-                ->where('slug', $slug)
-                ->where('channel', $channel)
-                ->exists();
+            $exists = app(NotificationTemplateRepositoryInterface::class)
+                ->existsBySlugForChannel((string) $slug, (string) $channel);
 
             if ($exists) {
                 $validator->errors()->add('slug', 'Já existe um template com este slug para o canal informado.');

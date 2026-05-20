@@ -31,11 +31,7 @@ class ProcessCommunicationJobTest extends TestCase
             'message' => 'mensagem direta',
         ]);
 
-        (new ProcessCommunicationJob($communication->id))->handle(
-            app(\App\Services\CommunicationService::class),
-            app(\App\Services\TemplateRenderer::class),
-            app(ChannelSenderFactory::class),
-        );
+        $this->app->call([new ProcessCommunicationJob($communication->id), 'handle']);
 
         $communication->refresh();
         $this->assertSame(CommunicationStatusEnum::Sent, $communication->status);
@@ -70,11 +66,7 @@ class ProcessCommunicationJobTest extends TestCase
             'variables' => ['nome' => 'Victor', 'empresa' => 'Acme'],
         ]);
 
-        (new ProcessCommunicationJob($communication->id))->handle(
-            app(\App\Services\CommunicationService::class),
-            app(\App\Services\TemplateRenderer::class),
-            app(ChannelSenderFactory::class),
-        );
+        $this->app->call([new ProcessCommunicationJob($communication->id), 'handle']);
 
         Mail::assertSent(CommunicationMail::class, fn (CommunicationMail $mail): bool => $mail->subjectLine === 'Bem-vindo Victor'
                 && $mail->bodyContent === 'Olá Victor, bem-vindo ao Acme.');
@@ -115,11 +107,7 @@ class ProcessCommunicationJobTest extends TestCase
         };
 
         try {
-            $job->handle(
-                app(\App\Services\CommunicationService::class),
-                app(\App\Services\TemplateRenderer::class),
-                $failingFactory,
-            );
+            $this->app->call([$job, 'handle']);
             $this->fail('Expected exception to be thrown.');
         } catch (RuntimeException $exception) {
             $this->assertSame('falha no provedor', $exception->getMessage());

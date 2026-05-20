@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Channels\ChannelSenderFactory;
+use App\Contracts\Repositories\CommunicationRepositoryInterface;
+use App\DTOs\OutboundMessage;
 use App\Enums\CommunicationLogEventEnum;
 use App\Models\Communication;
 use App\Services\CommunicationService;
@@ -28,9 +30,9 @@ class ProcessCommunicationJob implements ShouldQueue
         CommunicationService $service,
         TemplateRenderer $renderer,
         ChannelSenderFactory $factory,
+        CommunicationRepositoryInterface $communications,
     ): void {
-        /** @var Communication|null $communication */
-        $communication = Communication::query()->with('template')->find($this->communicationId);
+        $communication = $communications->findForProcessing($this->communicationId);
 
         if ($communication === null) {
             return;
@@ -45,7 +47,7 @@ class ProcessCommunicationJob implements ShouldQueue
             [$subject, $body] = $this->resolveContent($communication, $renderer);
 
             $sender = $factory->for($communication->channel);
-            $result = $sender->send(\App\DTOs\OutboundMessage::fromCommunication($communication, $subject, $body));
+            $result = $sender->send(OutboundMessage::fromCommunication($communication, $subject, $body));
 
             $communication->markSent();
             $service->log($communication, CommunicationLogEventEnum::Sent, 'Mensagem enviada com sucesso.', $result);
@@ -82,8 +84,7 @@ class ProcessCommunicationJob implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        /** @var Communication|null $communication */
-        $communication = Communication::query()->find($this->communicationId);
+        $communication = app(CommunicationRepositoryInterface::class)->find($this->communicationId);
 
         if ($communication === null) {
             return;

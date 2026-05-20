@@ -2,28 +2,20 @@
 
 namespace App\Services;
 
+use App\Contracts\Repositories\NotificationTemplateRepositoryInterface;
 use App\Models\NotificationTemplate;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class NotificationTemplateService
 {
+    public function __construct(private readonly NotificationTemplateRepositoryInterface $templates) {}
+
     /**
      * @param  array{channel?: ?string, is_active?: ?bool, search?: ?string}  $filters
      */
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return NotificationTemplate::query()
-            ->when($filters['channel'] ?? null, fn ($query, string $channel) => $query->where('channel', $channel))
-            ->when(array_key_exists('is_active', $filters) && $filters['is_active'] !== null,
-                fn ($query) => $query->where('is_active', $filters['is_active']))
-            ->when($filters['search'] ?? null, function ($query, string $search): void {
-                $query->where(function ($query) use ($search): void {
-                    $query->where('name', 'like', "%{$search}%")
-                        ->orWhere('slug', 'like', "%{$search}%");
-                });
-            })
-            ->orderByDesc('id')
-            ->paginate($perPage);
+        return $this->templates->paginate($filters, $perPage);
     }
 
     /**
@@ -31,7 +23,7 @@ class NotificationTemplateService
      */
     public function create(array $attributes): NotificationTemplate
     {
-        return NotificationTemplate::query()->create($attributes);
+        return $this->templates->create($attributes);
     }
 
     /**
@@ -39,13 +31,11 @@ class NotificationTemplateService
      */
     public function update(NotificationTemplate $template, array $attributes): NotificationTemplate
     {
-        $template->fill($attributes)->save();
-
-        return $template->refresh();
+        return $this->templates->update($template, $attributes);
     }
 
     public function delete(NotificationTemplate $template): void
     {
-        $template->delete();
+        $this->templates->delete($template);
     }
 }

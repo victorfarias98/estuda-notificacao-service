@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Contracts\Repositories\NotificationTemplateRepositoryInterface;
 use App\Enums\CommunicationChannelEnum;
 use App\Models\NotificationTemplate;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -78,18 +79,14 @@ class StoreCommunicationRequest extends FormRequest
     public function resolveTemplate(): ?NotificationTemplate
     {
         $channel = $this->input('channel');
+        $repository = app(NotificationTemplateRepositoryInterface::class);
 
         if ($this->filled('template_id')) {
-            return NotificationTemplate::query()
-                ->when($channel, fn ($query) => $query->where('channel', $channel))
-                ->find($this->integer('template_id'));
+            return $repository->findByIdAndChannel($this->integer('template_id'), $channel);
         }
 
         if ($this->filled('template_slug')) {
-            return NotificationTemplate::query()
-                ->where('slug', $this->input('template_slug'))
-                ->when($channel, fn ($query) => $query->where('channel', $channel))
-                ->first();
+            return $repository->findBySlugAndChannel((string) $this->input('template_slug'), $channel);
         }
 
         return null;
