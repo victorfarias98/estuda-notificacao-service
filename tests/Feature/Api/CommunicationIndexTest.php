@@ -16,7 +16,7 @@ class CommunicationIndexTest extends TestCase
         $older = Communication::factory()->email()->create();
         $newer = Communication::factory()->sms()->create();
 
-        $response = $this->getJson('/api/communications');
+        $response = $this->getJson('/api/v1/communications');
 
         $response->assertOk()
             ->assertJsonCount(2, 'data')
@@ -29,7 +29,7 @@ class CommunicationIndexTest extends TestCase
         Communication::factory()->email()->count(2)->create();
         Communication::factory()->sms()->create();
 
-        $this->getJson('/api/communications?channel=email')
+        $this->getJson('/api/v1/communications?channel=email')
             ->assertOk()
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.channel', 'email');
@@ -40,7 +40,7 @@ class CommunicationIndexTest extends TestCase
         Communication::factory()->email()->create(['origin_system' => 'sistema-financeiro']);
         Communication::factory()->email()->create(['origin_system' => 'app-mobile']);
 
-        $this->getJson('/api/communications?origin_system=sistema-financeiro')
+        $this->getJson('/api/v1/communications?origin_system=sistema-financeiro')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.origin_system', 'sistema-financeiro');
@@ -51,7 +51,7 @@ class CommunicationIndexTest extends TestCase
         Communication::factory()->email()->create(['recipient' => 'victor@example.com']);
         Communication::factory()->email()->create(['recipient' => 'alice@example.com']);
 
-        $this->getJson('/api/communications?recipient=victor')
+        $this->getJson('/api/v1/communications?recipient=victor')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.recipient', 'victor@example.com');
@@ -64,7 +64,7 @@ class CommunicationIndexTest extends TestCase
         Communication::factory()->sms()->create(['notification_template_id' => $template->id]);
         Communication::factory()->sms()->create();
 
-        $this->getJson('/api/communications?template_slug=codigo-otp')
+        $this->getJson('/api/v1/communications?template_slug=codigo-otp')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.template.slug', 'codigo-otp');
@@ -77,7 +77,7 @@ class CommunicationIndexTest extends TestCase
         Communication::factory()->push()->create(['notification_template_id' => $template->id]);
         Communication::factory()->push()->create();
 
-        $this->getJson("/api/communications?template_id={$template->id}")
+        $this->getJson("/api/v1/communications?template_id={$template->id}")
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.template.id', $template->id);
@@ -88,7 +88,7 @@ class CommunicationIndexTest extends TestCase
         Communication::factory()->email()->sent()->create();
         Communication::factory()->email()->failed()->create();
 
-        $this->getJson('/api/communications?status=sent')
+        $this->getJson('/api/v1/communications?status=sent')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.status', 'sent');
@@ -111,7 +111,7 @@ class CommunicationIndexTest extends TestCase
         ]);
         Communication::factory()->sms()->sent()->create();
 
-        $this->getJson('/api/communications?channel=email&origin_system=sistema-financeiro&recipient=victor&template_slug=boas-vindas&status=sent')
+        $this->getJson('/api/v1/communications?channel=email&origin_system=sistema-financeiro&recipient=victor&template_slug=boas-vindas&status=sent')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $match->id);
@@ -119,7 +119,7 @@ class CommunicationIndexTest extends TestCase
 
     public function test_rejects_invalid_channel_filter(): void
     {
-        $this->getJson('/api/communications?channel=fax')
+        $this->getJson('/api/v1/communications?channel=fax')
             ->assertUnprocessable()
             ->assertJsonValidationErrors('channel');
     }

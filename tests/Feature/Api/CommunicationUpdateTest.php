@@ -20,7 +20,7 @@ class CommunicationUpdateTest extends TestCase
             'recipient' => 'antigo@example.com',
         ]);
 
-        $response = $this->patchJson("/api/communications/{$communication->id}", [
+        $response = $this->patchJson("/api/v1/communications/{$communication->id}", [
             'subject' => 'novo assunto',
             'message' => 'novo corpo',
             'recipient' => 'novo@example.com',
@@ -53,7 +53,7 @@ class CommunicationUpdateTest extends TestCase
             'notification_template_id' => null,
         ]);
 
-        $response = $this->patchJson("/api/communications/{$communication->id}", [
+        $response = $this->patchJson("/api/v1/communications/{$communication->id}", [
             'template_slug' => 'codigo-otp',
             'variables' => ['codigo' => '987654'],
         ]);
@@ -73,7 +73,7 @@ class CommunicationUpdateTest extends TestCase
         $template = NotificationTemplate::factory()->email()->create();
         $communication = Communication::factory()->sms()->create();
 
-        $this->patchJson("/api/communications/{$communication->id}", [
+        $this->patchJson("/api/v1/communications/{$communication->id}", [
             'template_slug' => $template->slug,
         ])->assertUnprocessable()->assertJsonValidationErrors('template_slug');
     }
@@ -82,7 +82,7 @@ class CommunicationUpdateTest extends TestCase
     {
         $communication = Communication::factory()->email()->sent()->create();
 
-        $this->patchJson("/api/communications/{$communication->id}", [
+        $this->patchJson("/api/v1/communications/{$communication->id}", [
             'subject' => 'qualquer',
         ])
             ->assertStatus(409)
@@ -97,14 +97,14 @@ class CommunicationUpdateTest extends TestCase
     {
         $communication = Communication::factory()->email()->create();
 
-        $this->patchJson("/api/communications/{$communication->id}", [
+        $this->patchJson("/api/v1/communications/{$communication->id}", [
             'recipient' => 'nao-eh-email',
         ])->assertUnprocessable()->assertJsonValidationErrors('recipient');
     }
 
     public function test_returns_friendly_404_when_id_unknown(): void
     {
-        $this->patchJson('/api/communications/999', ['subject' => 'x'])
+        $this->patchJson('/api/v1/communications/999', ['subject' => 'x'])
             ->assertNotFound()
             ->assertJson([
                 'message' => 'Comunicação não encontrada.',

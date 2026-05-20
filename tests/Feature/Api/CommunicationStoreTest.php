@@ -27,7 +27,7 @@ class CommunicationStoreTest extends TestCase
             'origin_system' => 'sistema-financeiro',
         ];
 
-        $response = $this->postJson('/api/communications', $payload);
+        $response = $this->postJson('/api/v1/communications', $payload);
 
         $response->assertAccepted()
             ->assertJsonPath('data.status', 'pending')
@@ -58,7 +58,7 @@ class CommunicationStoreTest extends TestCase
 
     public function test_validates_required_fields(): void
     {
-        $response = $this->postJson('/api/communications', []);
+        $response = $this->postJson('/api/v1/communications', []);
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['recipient', 'channel', 'origin_system']);
@@ -66,7 +66,7 @@ class CommunicationStoreTest extends TestCase
 
     public function test_rejects_invalid_channel(): void
     {
-        $response = $this->postJson('/api/communications', [
+        $response = $this->postJson('/api/v1/communications', [
             'recipient' => 'usuario@email.com',
             'channel' => 'fax',
             'message' => 'oi',
@@ -79,7 +79,7 @@ class CommunicationStoreTest extends TestCase
 
     public function test_requires_subject_when_channel_is_email_without_template(): void
     {
-        $response = $this->postJson('/api/communications', [
+        $response = $this->postJson('/api/v1/communications', [
             'recipient' => 'usuario@email.com',
             'channel' => 'email',
             'message' => 'corpo',
@@ -91,7 +91,7 @@ class CommunicationStoreTest extends TestCase
 
     public function test_requires_valid_email_recipient_for_email_channel(): void
     {
-        $response = $this->postJson('/api/communications', [
+        $response = $this->postJson('/api/v1/communications', [
             'recipient' => 'nao-eh-email',
             'channel' => 'email',
             'subject' => 'Assunto',
@@ -104,7 +104,7 @@ class CommunicationStoreTest extends TestCase
 
     public function test_requires_message_when_no_template_is_provided(): void
     {
-        $response = $this->postJson('/api/communications', [
+        $response = $this->postJson('/api/v1/communications', [
             'recipient' => '+5511999999999',
             'channel' => 'sms',
             'origin_system' => 'sistema',
@@ -121,7 +121,7 @@ class CommunicationStoreTest extends TestCase
             'slug' => 'codigo-otp',
         ]);
 
-        $response = $this->postJson('/api/communications', [
+        $response = $this->postJson('/api/v1/communications', [
             'recipient' => '+5511999999999',
             'channel' => 'sms',
             'origin_system' => 'sistema-financeiro',
@@ -142,7 +142,7 @@ class CommunicationStoreTest extends TestCase
     {
         $template = NotificationTemplate::factory()->email()->create();
 
-        $response = $this->postJson('/api/communications', [
+        $response = $this->postJson('/api/v1/communications', [
             'recipient' => '+5511999999999',
             'channel' => 'sms',
             'message' => 'fallback',
@@ -157,7 +157,7 @@ class CommunicationStoreTest extends TestCase
     {
         $template = NotificationTemplate::factory()->sms()->inactive()->create();
 
-        $response = $this->postJson('/api/communications', [
+        $response = $this->postJson('/api/v1/communications', [
             'recipient' => '+5511999999999',
             'channel' => 'sms',
             'origin_system' => 'sistema',
@@ -166,5 +166,23 @@ class CommunicationStoreTest extends TestCase
         ]);
 
         $response->assertUnprocessable()->assertJsonValidationErrors('template_slug');
+    }
+
+    public function test_rejects_missing_required_template_variables(): void
+    {
+        $template = NotificationTemplate::factory()->email()->create([
+            'slug' => 'boas-vindas-vars',
+            'required_variables' => ['nome', 'empresa'],
+        ]);
+
+        $this->postJson('/api/v1/communications', [
+            'recipient' => 'usuario@email.com',
+            'channel' => 'email',
+            'origin_system' => 'sistema-financeiro',
+            'template_slug' => $template->slug,
+            'variables' => ['nome' => 'Victor'],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('variables');
     }
 }

@@ -15,7 +15,7 @@ class NotificationTemplateCrudTest extends TestCase
         NotificationTemplate::factory()->email()->count(2)->create();
         NotificationTemplate::factory()->sms()->create();
 
-        $response = $this->getJson('/api/notification-templates?channel=email');
+        $response = $this->getJson('/api/v1/notification-templates?channel=email');
 
         $response->assertOk()
             ->assertJsonCount(2, 'data');
@@ -32,7 +32,7 @@ class NotificationTemplateCrudTest extends TestCase
             'description' => 'Boas-vindas para novos usuários',
         ];
 
-        $response = $this->postJson('/api/notification-templates', $payload);
+        $response = $this->postJson('/api/v1/notification-templates', $payload);
 
         $response->assertCreated()
             ->assertJsonPath('data.slug', 'boas-vindas')
@@ -46,7 +46,7 @@ class NotificationTemplateCrudTest extends TestCase
 
     public function test_creates_sms_template_without_subject(): void
     {
-        $response = $this->postJson('/api/notification-templates', [
+        $response = $this->postJson('/api/v1/notification-templates', [
             'name' => 'OTP',
             'slug' => 'otp',
             'channel' => 'sms',
@@ -58,7 +58,7 @@ class NotificationTemplateCrudTest extends TestCase
 
     public function test_requires_subject_for_email_template(): void
     {
-        $response = $this->postJson('/api/notification-templates', [
+        $response = $this->postJson('/api/v1/notification-templates', [
             'name' => 'Boas-vindas',
             'slug' => 'boas-vindas',
             'channel' => 'email',
@@ -72,7 +72,7 @@ class NotificationTemplateCrudTest extends TestCase
     {
         NotificationTemplate::factory()->sms()->create(['slug' => 'otp']);
 
-        $response = $this->postJson('/api/notification-templates', [
+        $response = $this->postJson('/api/v1/notification-templates', [
             'name' => 'Outro OTP',
             'slug' => 'otp',
             'channel' => 'sms',
@@ -86,7 +86,7 @@ class NotificationTemplateCrudTest extends TestCase
     {
         NotificationTemplate::factory()->sms()->create(['slug' => 'aviso']);
 
-        $response = $this->postJson('/api/notification-templates', [
+        $response = $this->postJson('/api/v1/notification-templates', [
             'name' => 'Aviso push',
             'slug' => 'aviso',
             'channel' => 'push',
@@ -100,14 +100,14 @@ class NotificationTemplateCrudTest extends TestCase
     {
         $template = NotificationTemplate::factory()->push()->create();
 
-        $this->getJson("/api/notification-templates/{$template->id}")
+        $this->getJson("/api/v1/notification-templates/{$template->id}")
             ->assertOk()
             ->assertJsonPath('data.id', $template->id);
     }
 
     public function test_show_returns_friendly_response_for_unknown_template(): void
     {
-        $this->getJson('/api/notification-templates/999')
+        $this->getJson('/api/v1/notification-templates/999')
             ->assertNotFound()
             ->assertJson([
                 'message' => 'Template de notificação não encontrado.',
@@ -119,7 +119,7 @@ class NotificationTemplateCrudTest extends TestCase
     {
         $template = NotificationTemplate::factory()->push()->create();
 
-        $response = $this->patchJson("/api/notification-templates/{$template->id}", [
+        $response = $this->patchJson("/api/v1/notification-templates/{$template->id}", [
             'name' => 'Atualizado',
             'body' => 'novo corpo',
         ]);
@@ -136,7 +136,7 @@ class NotificationTemplateCrudTest extends TestCase
     {
         $template = NotificationTemplate::factory()->push()->create();
 
-        $this->deleteJson("/api/notification-templates/{$template->id}")
+        $this->deleteJson("/api/v1/notification-templates/{$template->id}")
             ->assertNoContent();
 
         $this->assertDatabaseMissing('notification_templates', ['id' => $template->id]);

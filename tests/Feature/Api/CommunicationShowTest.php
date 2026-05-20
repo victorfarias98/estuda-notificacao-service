@@ -21,7 +21,7 @@ class CommunicationShowTest extends TestCase
             'message' => 'OK',
         ]);
 
-        $response = $this->getJson("/api/communications/{$communication->id}");
+        $response = $this->getJson("/api/v1/communications/{$communication->id}");
 
         $response->assertOk()
             ->assertJsonPath('data.id', $communication->id)
@@ -32,7 +32,7 @@ class CommunicationShowTest extends TestCase
 
     public function test_show_returns_404_for_unknown_id(): void
     {
-        $this->getJson('/api/communications/999')
+        $this->getJson('/api/v1/communications/999')
             ->assertNotFound()
             ->assertJson([
                 'message' => 'Comunicação não encontrada.',
@@ -42,7 +42,7 @@ class CommunicationShowTest extends TestCase
 
     public function test_unknown_api_route_returns_friendly_json_response(): void
     {
-        $this->getJson('/api/rota-inexistente')
+        $this->getJson('/api/v1/rota-inexistente')
             ->assertNotFound()
             ->assertJson([
                 'message' => 'Rota não encontrada.',
